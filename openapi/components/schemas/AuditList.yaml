@@ -1,0 +1,20 @@
+type: object
+required:
+  - kind
+  - items
+  - total
+properties:
+  kind:
+    type: string
+    enum:
+      - AuditList
+    description: Always "AuditList"
+  items:
+    type: array
+    items:
+      $ref: ./AuditEntry.yaml
+    description: Audit log entries (sorted by timestamp descending)
+  total:
+    type: integer
+    description: Total number of matching audit entries
+    example: 3
