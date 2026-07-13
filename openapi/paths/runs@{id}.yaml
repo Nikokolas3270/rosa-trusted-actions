@@ -1,0 +1,59 @@
+get:
+  tags:
+    - Executions
+  summary: Retrieve execution details
+  description: >-
+    Retrieve an execution's metadata and optionally its output and/or logs.
+    Output and log content is only fetched for terminal executions
+    (succeeded, failed, timed_out).
+  operationId: getExecution
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Execution ID (UUID)
+      schema:
+        type: string
+        format: uuid
+    - name: include
+      in: query
+      required: false
+      description: >-
+        Opt-in content to include alongside metadata. Comma-separated
+        combination of "output" and "logs".
+      schema:
+        type: string
+        enum:
+          - output
+          - logs
+          - 'output,logs'
+      examples:
+        none:
+          summary: Metadata only (default)
+          value: ''
+        output:
+          summary: Include parsed JSON output
+          value: output
+        logs:
+          summary: Include raw execution logs
+          value: logs
+        both:
+          summary: Include output and logs
+          value: 'output,logs'
+  responses:
+    '200':
+      description: Execution details
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Execution.yaml
+    '404':
+      description: Execution not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Error.yaml
+          example:
+            kind: Error
+            code: not-found
+            reason: Execution not found
