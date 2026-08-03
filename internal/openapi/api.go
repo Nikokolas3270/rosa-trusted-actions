@@ -253,11 +253,6 @@ type ApprovalState string
 
 // AuditEntry defines model for AuditEntry.
 type AuditEntry struct {
-	// AccountId AWS account ID of caller
-	//
-	// Example: 123456789012
-	AccountId string `json:"account_id"`
-
 	// Action TA name (populated for POST /run calls; empty otherwise)
 	//
 	// Example: get_pods
@@ -267,11 +262,6 @@ type AuditEntry struct {
 	//
 	// Example: not_required
 	ApprovalState *string `json:"approval_state,omitempty"`
-
-	// CallerArn Full ARN of STS caller
-	//
-	// Example: arn:aws:sts::123456789012:assumed-role/DevAccess/slopezma
-	CallerArn string `json:"caller_arn"`
 
 	// ExecutionId Execution ID. For POST /run: the created ID. For GET /runs/{id}: the accessed ID. Empty otherwise.
 	//
@@ -290,11 +280,6 @@ type AuditEntry struct {
 
 	// Method HTTP method
 	Method AuditEntryMethod `json:"method"`
-
-	// Operator Extracted operator name
-	//
-	// Example: slopezma
-	Operator string `json:"operator"`
 
 	// Path Full request URI (path + query parameters)
 	//
@@ -315,6 +300,11 @@ type AuditEntry struct {
 	//
 	// Example: 2026-06-12T10:00:00.123456789Z
 	Timestamp time.Time `json:"timestamp"`
+
+	// Username OCM username of caller
+	//
+	// Example: srep-user
+	Username string `json:"username"`
 }
 
 // AuditEntryMethod HTTP method
@@ -358,11 +348,6 @@ type ErrorKind string
 
 // Execution defines model for Execution.
 type Execution struct {
-	// AccountId AWS account ID of caller
-	//
-	// Example: 123456789012
-	AccountId *string `json:"account_id,omitempty"`
-
 	// Action Trusted Action name
 	//
 	// Example: get_pods
@@ -370,11 +355,6 @@ type Execution struct {
 
 	// ApprovalState Approval lifecycle for an execution
 	ApprovalState *ApprovalState `json:"approval_state,omitempty"`
-
-	// CallerArn Full ARN of STS caller
-	//
-	// Example: arn:aws:sts::123456789012:assumed-role/DevAccess/slopezma
-	CallerArn *string `json:"caller_arn,omitempty"`
 
 	// CompletedAt When the reconciler detected both Jobs done
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
@@ -410,11 +390,6 @@ type Execution struct {
 	//
 	// Example: ta-fa65418c-...
 	ManifestWorkName *string `json:"manifest_work_name,omitempty"`
-
-	// Operator Extracted operator name
-	//
-	// Example: slopezma
-	Operator *string `json:"operator,omitempty"`
 
 	// Output Parsed JSON output from the TA. Only included when include=output is set and execution is in a terminal state.
 	Output interface{} `json:"output,omitempty"`
@@ -461,6 +436,11 @@ type Execution struct {
 	//
 	// Example: 12
 	UploadSeconds *int `json:"upload_seconds,omitempty"`
+
+	// Username OCM username of caller
+	//
+	// Example: srep-user
+	Username *string `json:"username,omitempty"`
 }
 
 // ExecutionList defines model for ExecutionList.

@@ -24,8 +24,16 @@ type Config struct {
 	S3KeyPrefix string
 
 	// Security Configuration (environment variables)
-	EnableAuth      bool
 	AllowedAccounts []string
+	RolesConfigPath string
+	JWKCertFile     string
+	JWKCertURL      string
+
+	// OCM Client Configuration (environment variables)
+	OCMBaseURL      string
+	OCMClientID     string
+	OCMClientSecret string
+	OCMToken        string
 
 	// Database Configuration (environment variables, for future use)
 	DatabaseURL string
@@ -62,8 +70,16 @@ func Load() *Config {
 		S3KeyPrefix: getEnv("ROSA_TA_S3_KEY_PREFIX", "trusted-actions"),
 
 		// Security Configuration
-		EnableAuth:      getBoolEnv("ROSA_TA_ENABLE_AUTH", true),
 		AllowedAccounts: getStringSliceEnv("ROSA_TA_ALLOWED_ACCOUNTS", nil),
+		RolesConfigPath: getEnv("ROSA_TA_ROLES_CONFIG", "configs/role_mapping.yaml"),
+		JWKCertFile:     getEnv("ROSA_TA_JWK_CERT_FILE", ""),
+		JWKCertURL:      getEnv("ROSA_TA_JWK_CERT_URL", "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/certs"),
+
+		// OCM Client Configuration
+		OCMBaseURL:      getEnv("ROSA_TA_OCM_BASE_URL", "https://api.openshift.com"),
+		OCMClientID:     getEnv("ROSA_TA_OCM_CLIENT_ID", ""),
+		OCMClientSecret: getEnv("ROSA_TA_OCM_CLIENT_SECRET", ""),
+		OCMToken:        getEnv("ROSA_TA_OCM_TOKEN", ""),
 
 		// Database Configuration
 		DatabaseURL: getEnv("DATABASE_URL", ""),

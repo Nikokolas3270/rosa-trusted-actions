@@ -12,13 +12,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	sdk "github.com/openshift-online/ocm-sdk-go"
+	"github.com/openshift-online/ocm-sdk-go/authentication"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/openshift-online/rosa-trusted-actions-server/internal/openapi"
+	"github.com/openshift-online/rosa-trusted-actions-server/internal/auth"
 	"github.com/openshift-online/rosa-trusted-actions-server/internal/config"
 	"github.com/openshift-online/rosa-trusted-actions-server/internal/handlers"
 	"github.com/openshift-online/rosa-trusted-actions-server/internal/middleware"
+	"github.com/openshift-online/rosa-trusted-actions-server/internal/ocm"
+	"github.com/openshift-online/rosa-trusted-actions-server/internal/openapi"
 )
 
 var (
@@ -70,6 +74,36 @@ func runServer(cmd *cobra.Command, args []string) error {
 	// Create handler implementation
 	apiHandler := handlers.NewAPIHandler(logger)
 
+	// Setup auth middleware
+	var authnMiddleware auth.JWTMiddleware
+	var authzMiddleware auth.AuthorizationMiddleware
+
+	authnMiddleware = auth.NewAuthMiddleware(logger)
+
+	roles, err := auth.LoadRoles(cfg.RolesConfigPath)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to load role configuration")
+	}
+
+	ocmClient, err := ocm.NewClient(ocm.Config{
+		BaseURL:      cfg.OCMBaseURL,
+		ClientID:     cfg.OCMClientID,
+		ClientSecret: cfg.OCMClientSecret,
+		SelfToken:    cfg.OCMToken,
+	})
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create OCM client")
+	}
+	defer func() {
+		if err := ocmClient.Close(); err != nil {
+			logger.WithError(err).Error("Failed to close OCM connection")
+		}
+	}()
+
+	authzMiddleware = auth.NewRoleAuthzMiddleware(roles, ocmClient.Authorization, logger)
+
+	actionAuthz := auth.NewActionAuthzMiddleware(apiHandler.ActionCatalog, logger)
+
 	// Setup router
 	router := chi.NewRouter()
 
@@ -90,22 +124,57 @@ func runServer(cmd *cobra.Command, args []string) error {
 		MaxAge:           300,
 	}))
 
-	// Health check endpoint
+	// Health check endpoint (no auth required)
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"status":"healthy","version":"%s","build_date":"%s","git_commit":"%s"}`, version, buildDate, gitCommit)
 	})
 
-	// Add API routes with base path
+	// Add API routes with auth middleware
 	router.Route("/api/v0/trusted-actions", func(r chi.Router) {
-		r.Mount("/", openapi.HandlerFromMux(apiHandler, r))
+		r.Use(authnMiddleware.AuthenticateAccountJWT)
+		r.Use(authzMiddleware.AuthorizeAPI)
+		// HandlerWithOptions registers routes directly on r via BaseRouter,
+		// so the return value is not mounted — that would cause an infinite
+		// routing loop since r.Mount("/", r) re-enters the same router.
+		openapi.HandlerWithOptions(apiHandler, openapi.ChiServerOptions{
+			BaseRouter:  r,
+			Middlewares: []openapi.MiddlewareFunc{actionAuthz.CheckActionAccess},
+		})
 	})
+
+	// Wrap the router with OCM JWT validation.
+	// This matches the rh-trex pattern (api_server.go:53-74): the OCM SDK handler
+	// validates JWT signatures against JWKS, stores the verified token in context,
+	// then the auth.Middleware extracts claims from that token.
+	var mainHandler http.Handler = router
+	authnLogger, err := sdk.NewStdLoggerBuilder().
+		Debug(logger.Level >= logrus.DebugLevel).
+		Build()
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create OCM authentication logger")
+	}
+
+	builder := authentication.NewHandler().
+		Logger(authnLogger).
+		KeysURL(cfg.JWKCertURL).
+		Public("^/health$").
+		Next(mainHandler)
+
+	if cfg.JWKCertFile != "" {
+		builder = builder.KeysFile(cfg.JWKCertFile)
+	}
+
+	mainHandler, err = builder.Build()
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to build OCM authentication handler")
+	}
 
 	// Create server
 	srv := &http.Server{
 		Addr:    cfg.ListenAddr,
-		Handler: router,
+		Handler: mainHandler,
 		// Security settings
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   30 * time.Second,
