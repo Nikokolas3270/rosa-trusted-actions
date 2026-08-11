@@ -93,6 +93,14 @@ func New() *Catalog {
 		},
 	})
 
+	c.register(&ActionDefinition{
+		Name:         "get-pull-secret-email",
+		Description:  "Get the registered email from the cluster pull secret",
+		Type:         openapi.Read,
+		Scope:        openapi.KubeApi,
+		AllowedRoles: allRoles,
+	})
+
 	return c
 }
 
