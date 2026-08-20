@@ -67,6 +67,7 @@ The `config.Config` struct separates:
 - **AWS config**: Standard AWS environment variables
 - **Storage config**: S3 bucket configuration
 - **Security config**: Authentication and account restrictions
+- **Workers config**: Number of workers and some time settings around those workers
 
 ### Environment Variables
 
@@ -75,6 +76,29 @@ The `config.Config` struct separates:
 - `ROSA_TA_ENABLE_AUTH`: Enable/disable authentication enforcement
 - `ROSA_TA_ALLOWED_ACCOUNTS`: Comma-separated list of allowed AWS account IDs
 - `DATABASE_URL`: Database connection string
+- `ROSA_TA_WORKER_CONCURRENCY`: Number of execution workers
+- `ROSA_TA_WORKER_POLL_INTERVAL`: Maximum interval between checks for pending executions when a worker has not received a new-work notification
+- `ROSA_TA_WORKER_EXECUTION_TIMEOUT`: Max time allowed for an execution to process
+- `ROSA_TA_ALLOWED_NAMESPACES`: Namespaces which can be targeted by actions
+- `ROSA_TA_ALLOWED_SECRETS`: Secrets which can be used by actions
+
+### Configuration file
+
+Some of the above parameters can also be defined in a configuration file:
+```yaml
+workers:
+    concurrency: 4
+    poll_interval: 5s
+    execution_timeout: 2m
+actions:
+    allowed_namespaces:
+      - openshift-logging
+      - openshift-monitoring
+      - openshift-operators
+    allowed_secrets:
+      - openshift-logging/collector-config
+      - openshift-monitoring/alertmanager-config
+```
 
 ## Security
 

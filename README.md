@@ -185,17 +185,28 @@ export AWS_SECRET_ACCESS_KEY="your-secret"
 export ROSA_TA_S3_BUCKET="trusted-actions-bucket"
 export ROSA_TA_ALLOWED_ACCOUNTS="123456789012,987654321098"
 
-# Authorization
+# Security Configuration
 export ROSA_TA_ROLES_CONFIG="configs/role_mapping.yaml"
 export ROSA_TA_JWK_CERT_FILE=""  # optional
 export ROSA_TA_JWK_CERT_URL="https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/certs"
+# OCM Client Configuration
 export ROSA_TA_OCM_BASE_URL="https://api.openshift.com"
 export ROSA_TA_OCM_CLIENT_ID="some-client-id"
 export ROSA_TA_OCM_CLIENT_SECRET="xxxxxxxxxxxxxxx"
 export ROSA_TA_OCM_TOKEN=""
+
+# Workers Configuration
+export ROSA_TA_WORKER_CONCURRENCY="4"
+export ROSA_TA_WORKER_POLL_INTERVAL="5s"
+export ROSA_TA_WORKER_EXECUTION_TIMEOUT="2m"
+
+# Actions Configuration
+export ROSA_TA_ALLOWED_NAMESPACES="openshift-logging,openshift-monitoring,openshift-operators"
+export ROSA_TA_ALLOWED_SECRETS="openshift-logging/collector-config,openshift-monitoring/alertmanager-config"
 ```
 
 Copy `.env.example` to `.env` and customize.
+Some of those parameters can also be defined [in a configuration file](./ARCHITECTURE.md#configuration-file).
 
 ## API Endpoints
 
