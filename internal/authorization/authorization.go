@@ -24,6 +24,8 @@ type authorizer struct {
 	allowedSecrets    map[string]bool
 }
 
+var _ Authorizer = (*authorizer)(nil)
+
 func New(logger *logrus.Logger, allowedNamespaces []string, allowedSecrets []string) Authorizer {
 	nsSet := make(map[string]bool, len(allowedNamespaces))
 	for _, ns := range allowedNamespaces {
