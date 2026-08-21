@@ -48,6 +48,30 @@ func main() {
 			logger.SetLevel(logrus.DebugLevel)
 			logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
 
+			var act actions.Action
+			switch action {
+			case "get":
+				act = actions.NewGetAction()
+			case "patch":
+				act = actions.NewPatchAction()
+			case "delete":
+				act = actions.NewDeleteAction()
+			case "get-pull-secret-email":
+				act = actions.NewGetPullSecretEmailAction()
+				namespace = "openshift-config"
+				resource = "secrets"
+				name = "pull-secret"
+				if allowedSecrets == "" {
+					allowedSecrets = "openshift-config/pull-secret"
+				}
+			default:
+				return fmt.Errorf("unknown action %q, must be one of: get, patch, delete, get-pull-secret-email", action)
+			}
+
+			if resource == "" {
+				return fmt.Errorf("--resource is required for action %q", action)
+			}
+
 			nsList := splitCSV(allowedNS)
 			if len(nsList) == 0 && namespace != "" {
 				nsList = []string{namespace}
@@ -58,26 +82,6 @@ func main() {
 			authz := authorization.New(logger, nsList, secList)
 			bp := backplane.NewKubeconfigProvider(logger, kubeconfig)
 			exec := executor.New(logger, authz, auditor, bp)
-
-			var act actions.Action
-			switch action {
-			case "get":
-				act = actions.NewGetAction()
-			case "patch":
-				act = actions.NewPatchAction()
-			case "delete":
-				act = actions.NewDeleteAction()
-			case "describe-nodes":
-				act = actions.NewDescribeNodesAction()
-				clusterScoped = true
-				resource = "nodes"
-			default:
-				return fmt.Errorf("unknown action %q, must be one of: get, patch, delete, describe-nodes", action)
-			}
-
-			if resource == "" {
-				return fmt.Errorf("--resource is required for action %q", action)
-			}
 
 			params := make(map[string]string)
 			if patchBody != "" {
@@ -132,7 +136,7 @@ func main() {
 	}
 
 	runCmd.Flags().StringVar(&kubeconfig, "kubeconfig", os.Getenv("KUBECONFIG"), "path to kubeconfig")
-	runCmd.Flags().StringVar(&action, "action", "", "action to execute: get, patch, delete")
+	runCmd.Flags().StringVar(&action, "action", "", "action to execute: get, patch, delete, get-pull-secret-email")
 	runCmd.Flags().StringVar(&namespace, "namespace", "", "target namespace")
 	runCmd.Flags().StringVar(&group, "group", "", "API group (empty for core)")
 	runCmd.Flags().StringVar(&version, "version", "v1", "API version")
