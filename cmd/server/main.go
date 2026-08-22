@@ -54,6 +54,7 @@ func newRootCmd() *cobra.Command {
 	}
 
 	// Add server flags
+	cmd.Flags().String("config-file", "", "path to the config file (YAML format)")
 	cmd.Flags().String("listen-addr", ":8080", "listen address")
 	cmd.Flags().String("log-level", "info", "log level (debug, info, warn, error)")
 	cmd.Flags().Bool("log-json", false, "enable JSON logging")
@@ -63,17 +64,24 @@ func newRootCmd() *cobra.Command {
 
 func runServer(cmd *cobra.Command, args []string) error {
 	// Get CLI flag values
-	listenAddr, _ := cmd.Flags().GetString("listen-addr")
-	logLevel, _ := cmd.Flags().GetString("log-level")
-	logJSON, _ := cmd.Flags().GetBool("log-json")
+	configFilePath, _ := cmd.Flags().GetString("config-file")
 
 	// Load configuration from environment
-	cfg := config.Load()
+	cfg := config.Load(configFilePath)
 
 	// Override with CLI flags
-	cfg.ListenAddr = listenAddr
-	cfg.LogLevel = logLevel
-	cfg.LogJSON = logJSON
+	if cmd.Flags().Changed("listen-addr") {
+		listenAddr, _ := cmd.Flags().GetString("listen-addr")
+		cfg.ListenAddr = listenAddr
+	}
+	if cmd.Flags().Changed("log-level") {
+		logLevel, _ := cmd.Flags().GetString("log-level")
+		cfg.LogLevel = logLevel
+	}
+	if cmd.Flags().Changed("log-json") {
+		logJSON, _ := cmd.Flags().GetBool("log-json")
+		cfg.LogJSON = logJSON
+	}
 
 	// Setup logging
 	logger := setupLogging(cfg)

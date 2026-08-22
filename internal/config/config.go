@@ -1,10 +1,13 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Config holds the application configuration
@@ -39,7 +42,7 @@ type Config struct {
 	// Database Configuration (environment variables, for future use)
 	DatabaseURL string
 
-	// Worker Configuration (environment variables)
+	// Workers Configuration (environment variables)
 	// WorkerConcurrency is the number of goroutines dequeuing and running
 	// executions concurrently.
 	WorkerConcurrency int
@@ -59,7 +62,7 @@ type Config struct {
 	// Kubernetes Configuration (local testing only)
 	Kubeconfig string
 
-	// Authorization Configuration
+	// Actions Configuration
 	AllowedNamespaces []string
 	AllowedSecrets    []string
 
@@ -70,8 +73,43 @@ type Config struct {
 	EnableAuth bool
 }
 
+type configFile struct {
+	Workers struct {
+		Concurrency      int           `yaml:"concurrency"`
+		PollInterval     time.Duration `yaml:"poll_interval"`
+		ExecutionTimeout time.Duration `yaml:"execution_timeout"`
+	} `yaml:"workers"`
+
+	Actions struct {
+		AllowedNamespaces []string `yaml:"allowed_namespaces"`
+		AllowedSecrets    []string `yaml:"allowed_secrets"`
+	} `yaml:"actions"`
+}
+
+func readConfigFile(configFilePath string) *configFile {
+	configFile := &configFile{}
+
+	configFile.Workers.Concurrency = 4
+	configFile.Workers.PollInterval = 5 * time.Second
+	configFile.Workers.ExecutionTimeout = 2 * time.Minute
+
+	if configFilePath != "" {
+		data, err := os.ReadFile(configFilePath)
+		if err != nil {
+			log.Fatalf("Failed to read '%s' config file: %v", configFilePath, err)
+		}
+		err = yaml.Unmarshal(data, configFile)
+		if err != nil {
+			log.Fatalf("Failed to unmarshal '%s' config file: %v", configFilePath, err)
+		}
+	}
+	return configFile
+}
+
 // Load loads configuration from environment variables with defaults
-func Load() *Config {
+func Load(configFilePath string) *Config {
+	configFile := readConfigFile(configFilePath)
+
 	return &Config{
 		// Server config (set via CLI flags, defaults here for reference)
 		ListenAddr: getEnv("ROSA_TA_LISTEN_ADDR", ":8080"),
@@ -103,10 +141,10 @@ func Load() *Config {
 		// Database Configuration
 		DatabaseURL: getEnv("DATABASE_URL", ""),
 
-		// Worker Configuration
-		WorkerConcurrency:      getPositiveIntEnv("ROSA_TA_WORKER_CONCURRENCY", 4),
-		WorkerPollInterval:     getPositiveDurationEnv("ROSA_TA_WORKER_POLL_INTERVAL", 5*time.Second),
-		WorkerExecutionTimeout: getPositiveDurationEnv("ROSA_TA_WORKER_EXECUTION_TIMEOUT", 2*time.Minute),
+		// Workers Configuration
+		WorkerConcurrency:      getPositiveIntEnv("ROSA_TA_WORKER_CONCURRENCY", configFile.Workers.Concurrency),
+		WorkerPollInterval:     getPositiveDurationEnv("ROSA_TA_WORKER_POLL_INTERVAL", configFile.Workers.PollInterval),
+		WorkerExecutionTimeout: getPositiveDurationEnv("ROSA_TA_WORKER_EXECUTION_TIMEOUT", configFile.Workers.ExecutionTimeout),
 
 		// Backplane Configuration
 		BackplaneURL:          getEnv("ROSA_TA_BACKPLANE_URL", ""),
@@ -116,9 +154,9 @@ func Load() *Config {
 		// Kubernetes Configuration (local testing only)
 		Kubeconfig: getEnv("ROSA_TA_KUBECONFIG", ""),
 
-		// Authorization Configuration
-		AllowedNamespaces: getStringSliceEnv("ROSA_TA_ALLOWED_NAMESPACES", nil),
-		AllowedSecrets:    getStringSliceEnv("ROSA_TA_ALLOWED_SECRETS", nil),
+		// Actions Configuration
+		AllowedNamespaces: getStringSliceEnv("ROSA_TA_ALLOWED_NAMESPACES", configFile.Actions.AllowedNamespaces),
+		AllowedSecrets:    getStringSliceEnv("ROSA_TA_ALLOWED_SECRETS", configFile.Actions.AllowedSecrets),
 
 		// Development flags
 		EnableAuth: getBoolEnv("ROSA_TA_ENABLE_AUTH", true),
